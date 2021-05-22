@@ -1,8 +1,9 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Main where
 
-import Prelude (Bool(..), Enum (succ), Foldable (null, sum), IO (..), Int, Maybe(..), Num ((+)), Ord ((>)), concat, flip, head, id, not, putStrLn, reverse, tail, zip, ($), (++), (.), (||))
+import Prelude (Bool (..), Enum (succ), Eq, Foldable (null, sum), Fractional ((/)), IO (..), Int, Integral (div, mod), Maybe (..), Num ((*), (+), (-)), Ord ((>)), all, concat, const, even, flip, fst, head, id, not, odd, otherwise, putStrLn, reverse, scanr, tail, undefined, zip, ($), (&&), (++), (.), (||))
 
 main :: IO ()
 main = putStrLn "Hello, Haskell!"
@@ -163,18 +164,16 @@ wrap :: a -> [a]
 wrap x = [x]
 
 unwrap :: [a] -> a
-unwrap (x:xs) = x
+unwrap (x : xs) = x
 
 single :: [a] -> Bool
 single [x] = True
 single _ = False
 
-
 -- 1.4
 
 reverse' :: [a] -> [a]
 reverse' = foldl (flip (:)) []
-
 
 -- 1.5
 
@@ -182,4 +181,106 @@ map2 :: (a -> b) -> [a] -> [b]
 map2 f = foldr ((:) . f) []
 
 filter2 :: (a -> Bool) -> [a] -> [a]
-filter2 pred = foldr (\x acc -> if pred x then x:acc else acc) []
+filter2 pred = foldr (\x acc -> if pred x then x : acc else acc) []
+
+-- 1.6 express foldr f e . filter p as an instance of foldr
+
+abc f p e = foldr f e . filter p
+
+abc2 f p = foldr op
+  where
+    op x acc = if p x then f x acc else acc
+
+-- 1.7
+
+-- foldr :: (a -> b -> b) -> b -> [a] -> b
+-- foldr f e [] = e
+-- foldr f e (x : xs) = f x (foldr f e xs)
+
+takeWhile :: (a -> Bool) -> [a] -> [a]
+takeWhile f = foldr op []
+  where
+    op x acc = if f x then x : acc else []
+
+-- 1.8
+
+-- dropWhileEnd even [1, 4, 3, 6, 2, 4] = [1, 4, 3]
+
+-- https://stackoverflow.com/questions/27456313/how-to-implement-delete-with-foldr-in-haskell
+dropWhileEnd :: (a -> Bool) -> [a] -> [a]
+dropWhileEnd f xs = foldr op (const []) xs xs
+  where
+    -- op :: a -> ([a] -> [a]) -> ([a] -> [a])
+    op x g state =
+      if all f state
+        then g []
+        else x : g (tail state)
+
+-- op rest x acc = if all f xs then x : acc else []
+
+dropWhileEnd2 :: (a -> Bool) -> [a] -> [a]
+dropWhileEnd2 p = foldr (\x xs -> if p x && null xs then [] else x : xs) []
+
+-- delete :: Eq a => a -> [a] -> [a]
+-- delete a xs = foldr f _ xs _
+--   where
+--     f :: a -> (Bool -> [a]) -> (Bool -> [a])
+--     f x g = _
+
+-- 1.9
+
+-- foldr f e xs = if null xs then e else f (head xs) (foldr f e (tail xs))
+-- foldl f e xs = if null xs then e else f (foldl f e (init xs)) (last xs)
+
+-- init and last are O(n) which makes the foldl defined above as very inefficient
+
+-- 1.10
+
+-- when is foldr op e xs = foldl op e xs ?
+
+-- when op is associative with an identity element
+
+-- 1.11
+
+-- write integer [1, 4, 5, 6] = 1456
+-- wrte fraction [1, 4, 6, 7] = 0.1467
+
+integer = foldl op 0
+  where
+    op x 0 = x
+    op x acc = 10 * x + acc
+
+fraction = foldr op 0
+  where
+    op x 0 = x / 10
+    op x acc = x / 10 + acc / 10
+
+-- 1.12
+
+-- complete the RHS of
+-- map (foldl f e) . init = scanl f e
+-- map (foldr f e) . tail = scanr f e
+
+-- Master Rule
+-- h (foldr f e xs) = foldr g (h e) xs
+-- h . foldr f e = foldr g (h e)
+-- Fusion Condition
+-- h (f x y) = g x (h y)
+-- f :: a -> b -> b
+-- h :: b -> b
+-- g :: a -> b -> b
+
+-- h = map
+-- foldr g (map e) xs
+
+-- 1.13
+
+apply :: Nat -> (a -> a) -> a -> a
+apply 0 _ v = v
+apply n f v = apply (n - 1) f (f v)
+
+apply2 0 f = id
+apply2 n f = f . apply2 (n - 1) f
+
+
+-- 1.14
